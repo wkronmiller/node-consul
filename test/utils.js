@@ -75,6 +75,30 @@ describe("utils", function () {
     });
   });
 
+  describe("applyErrorResponse", function () {
+    it("should mask tokens in error messages", function () {
+      const request = {
+        err: {
+          message: `Error with headers: {"x-consul-token":"12345678abcd"}`,
+        },
+        headers: { "x-consul-token": "12345678abcd" },
+      };
+      utils.applyErrorResponse(request);
+      should(request.err.message).not.match(/12345678abcd/);
+      should(request.err.message).match(/1234\*\*\*\*abcd/);
+    });
+
+    it("should not modify messages when no tokens present", function () {
+      const originalMessage = `Error with headers: {"content-type":"application/json"}`;
+      const request = {
+        err: { message: originalMessage },
+        headers: { "content-type": "application/json" },
+      };
+      utils.applyErrorResponse(request);
+      should(request.err.message).equal(originalMessage);
+    });
+  });
+
   describe("normalizeKeys", function () {
     it("should work", function () {
       should(utils.normalizeKeys()).eql({});
@@ -1003,6 +1027,69 @@ describe("utils", function () {
       should(utils.hasIndexChanged(1n, 0n)).equal(true);
       should(utils.hasIndexChanged(2n, 1n)).equal(true);
       should(utils.hasIndexChanged(2n, 2n)).equal(false);
+    });
+  });
+
+  describe("maskToken", function () {
+    it("should mask long tokens", function () {
+      should(utils.maskToken("12345678abcdefgh")).equal("1234****efgh");
+      should(utils.maskToken("a1b2c3d4e5f6g7h8i9j0")).equal("a1b2****i9j0");
+    });
+
+    it("should not mask short tokens", function () {
+      should(utils.maskToken("short")).equal("short");
+      should(utils.maskToken("1234567")).equal("1234567");
+    });
+
+    it("should handle non-string values", function () {
+      should(utils.maskToken(null)).equal(null);
+      should(utils.maskToken(undefined)).equal(undefined);
+      should(utils.maskToken(123)).equal(123);
+    });
+  });
+
+  describe("cloneForLogging", function () {
+    it("should mask token fields", function () {
+      const obj = {
+        token: "12345678abcdefgh",
+        "x-consul-token": "a1b2c3d4e5f6g7h8i9j0",
+        other: "value",
+      };
+      const result = utils.cloneForLogging(obj);
+      should(result.token).equal("1234****efgh");
+      should(result["x-consul-token"]).equal("a1b2****i9j0");
+      should(result.other).equal("value");
+    });
+
+    it("should handle nested objects", function () {
+      const obj = {
+        headers: {
+          "x-consul-token": "12345678abcdefgh",
+          "content-type": "application/json",
+        },
+        query: {
+          token: "a1b2c3d4e5f6g7h8i9j0",
+        },
+      };
+      const result = utils.cloneForLogging(obj);
+      should(result.headers["x-consul-token"]).equal("1234****efgh");
+      should(result.headers["content-type"]).equal("application/json");
+      should(result.query.token).equal("a1b2****i9j0");
+    });
+
+    it("should handle non-object values", function () {
+      should(utils.cloneForLogging(null)).equal(null);
+      should(utils.cloneForLogging("string")).equal("string");
+      should(utils.cloneForLogging(123)).equal(123);
+    });
+
+    it("should handle inherited properties", function () {
+      const parent = { inheritedProp: "value" };
+      const child = Object.create(parent);
+      child.token = "12345678abcd";
+      const result = utils.cloneForLogging(child);
+      should(result.token).equal("1234****abcd");
+      should(result).not.have.property("inheritedProp");
     });
   });
 });
