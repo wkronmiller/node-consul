@@ -268,4 +268,19 @@ describe("Watch", function () {
       });
     });
   });
+
+  describe("memory cleanup", function () {
+    it("should clear active timer on end", function () {
+      const watch = this.consul.watch({
+        method: this.consul.kv.get,
+        options: { key: "key1" },
+      });
+
+      watch._activeTimer = setTimeout(() => {}, 1000);
+      should(watch._activeTimer).not.be.null();
+
+      watch.end();
+      should(watch._activeTimer).be.null();
+    });
+  });
 });
