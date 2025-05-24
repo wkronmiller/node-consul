@@ -1,5 +1,7 @@
 > [!CAUTION]
-> This project is no longer maintained.
+
+This is a fork of the deprecated package https://github.com/silas/node-consul.
+I have not yet had a chance to review the code.
 
 # Consul
 
