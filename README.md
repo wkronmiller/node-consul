@@ -57,7 +57,7 @@ Advanced options
 Usage
 
 ```javascript
-import Consul from "consul";
+import Consul from "@wkronmiller/consul";
 
 const consul = new Consul();
 ```
